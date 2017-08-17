@@ -1,0 +1,13 @@
+# Zoinkitty's original python file(s)
+*.py
+
+/target/
+**/*.rs.bk
+Cargo.lock
+
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
