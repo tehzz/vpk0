@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["tehzz"]
 
 [dependencies]
+byteorder = "1.1.0"
+bitreader = "0.3.1"
