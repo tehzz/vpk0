@@ -6,10 +6,3 @@ mod errors;
 mod decode;
 
 pub use decode::decode as decode;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-    }
-}
