@@ -46,6 +46,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>>
             // have position in output, now grab length of bytes to copy
             let n = tbl_select(&mut bit_reader, &table2)? as usize;
             // append bytes from output to output?
+            
             for i in p..p+n {
                 let byte = output[i];
                 output.push(byte);
