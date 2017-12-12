@@ -1,12 +1,29 @@
-error_chain!{
-    foreign_links {
-        StrFromUtf8(::std::str::Utf8Error);
-        Io(::std::io::Error);
+use std::io;
+use std::str;
+
+#[derive(Fail, Debug)]
+pub enum VpkError {
+    #[fail(display = "Invalid header for vpk file")]
+    InvalidHeader,
+
+    #[fail(display = "VPK mode {} not supported", _0)]
+    UnsupportedMode(u8),
+
+    #[fail(display = "{}", _0)]
+    Utf8Error(#[cause] str::Utf8Error),
+
+    #[fail(display = "{}", _0)]
+    Io(#[cause] io::Error),
+}
+
+impl From<io::Error> for VpkError {
+    fn from(error: io::Error) -> Self {
+        VpkError::Io(error)
     }
-    errors {
-        InvalidHeader {
-            description("invalid header for vpk0 file"),
-            display("invalid header for vpk0 file"),
-        }
+}
+
+impl From<str::Utf8Error> for VpkError {
+    fn from(error: str::Utf8Error) -> Self {
+        VpkError::Utf8Error(error)
     }
 }

@@ -1,11 +1,11 @@
-use errors::*;
+use errors::{VpkError};
 
 use std::io::{Read};
 use std::str;
 use byteorder::{BE, ByteOrder};
 use bitstream_io::{BE as bBE, BitReader};
 
-pub fn decode<R>(mut buf: R) -> Result<Vec<u8>>
+pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     where R: Read
 {
     // convert Reader to BitReader
@@ -14,6 +14,11 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>>
     let mut header = [0u8; 8];
     bit_reader.read_bytes(&mut header)?;
     let header = parse_header(&header)?;
+
+    // currently only work with "mode 0" files (are there other modes?)
+    if header.mode != 0 { 
+        return Err(VpkError::UnsupportedMode(header.mode))
+    }
 
     // retrieve sample length?
     let sample_length: u8 = bit_reader.read(8)?;
@@ -71,14 +76,14 @@ struct VPKHeader {
 }
 
 ///This functions checks for a proper vpk0 header, and if valid, parses the header
-fn parse_header(input: &[u8]) -> Result<VPKHeader> {
-    if input.len() < 8 { bail!(ErrorKind::InvalidHeader) }
+fn parse_header(input: &[u8]) -> Result<VPKHeader, VpkError> {
+    if input.len() < 8 { return Err(VpkError::InvalidHeader) }
 
     let name = str::from_utf8(&input[0..3])?;
     let mode = input[3] - 48;
     let size = BE::read_u32(&input[4..8]);
 
-    if name != "vpk" { bail!(ErrorKind::InvalidHeader) }
+    if name != "vpk" { return Err(VpkError::InvalidHeader) }
 
     Ok(VPKHeader{mode, size})
 }
@@ -93,7 +98,8 @@ struct TBLentry {
 }
 
 ///Build a Huffman table?
-fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>> {
+fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>, VpkError> 
+{
     let mut table: Vec<TBLentry> = Vec::new();
     let mut buf: Vec<u32>   = Vec::new();
     // current index
@@ -142,7 +148,7 @@ fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>> {
 }
 
 // Find "non-reference" entry in the table? Return the width of that entry?
-fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32>
+fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32, VpkError>
 {
     // start at final entry
     let len = tbl.len();
