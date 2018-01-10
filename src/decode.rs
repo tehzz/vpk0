@@ -5,6 +5,7 @@ use std::str;
 use byteorder::{BE, ByteOrder};
 use bitstream_io::{BE as bBE, BitReader};
 
+/// Decode a Reader of vpk0 data into a Vec of the decompressed data
 pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     where R: Read
 {

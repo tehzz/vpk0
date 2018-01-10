@@ -6,3 +6,4 @@ mod errors;
 mod decode;
 
 pub use decode::decode as decode;
+pub use errors::VpkError as VpkError;

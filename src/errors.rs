@@ -1,6 +1,8 @@
 use std::io;
 use std::str;
 
+/// Possible errors that arise from attempting to convert a vpk0 binary into its
+/// decompressed data, or vise-versa.
 #[derive(Fail, Debug)]
 pub enum VpkError {
     #[fail(display = "Invalid header for vpk file")]
