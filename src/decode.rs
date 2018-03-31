@@ -23,26 +23,27 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
 
     // retrieve sample length?
     let sample_length: u8 = bit_reader.read(8)?;
-    // build table 1
-    let table1 = build_table(&mut bit_reader)?;
-    // build table 2
-    let table2 = build_table(&mut bit_reader)?;
+    println!("sample_length: {}", sample_length);
+    // build first huffman tree
+    let movetree = build_table(&mut bit_reader)?;
+    // build second huffman tree
+    let sizetree = build_table(&mut bit_reader)?;
 
-    // finally decode input
+    // finally, start decoding the input buffer
     let output_size = header.size as usize;
     let mut output: Vec<u8> = Vec::with_capacity(output_size);
 
     while output.len() < output_size {
         if bit_reader.read_bit()? {
             // copy bytes from output
-            let mut u = tbl_select(&mut bit_reader, &table1)? as usize;
+            let mut u = tbl_select(&mut bit_reader, &movetree)? as usize;
             let p = if sample_length > 0 {
                 // two-sample backtrack lengths
                 let mut l = 0;
 
                 if u < 3 {
                     l = u + 1;
-                    u = tbl_select(&mut bit_reader, &table1)? as usize;
+                    u = tbl_select(&mut bit_reader, &movetree)? as usize;
                 }
                 output.len() - (u << 2) - l + 8
             } else {
@@ -50,7 +51,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
                 output.len() - u
             };
             // have position in output, now grab length of bytes to copy
-            let n = tbl_select(&mut bit_reader, &table2)? as usize;
+            let n = tbl_select(&mut bit_reader, &sizetree)? as usize;
             // append bytes from output to output?
             
             for i in p..p+n {
@@ -92,10 +93,10 @@ fn parse_header(input: &[u8]) -> Result<VPKHeader, VpkError> {
 /// A Huffman table entry?
 struct TBLentry {
     /// left? (0)
-    unk0: u32,
+    left: u32,
     /// right? (1)
-    unk1: u32,
-    value: u8,
+    right: u32,
+    value: Option<u8>,
 }
 
 ///Build a Huffman table?
@@ -115,23 +116,23 @@ fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>, VpkError>
             if idx < 2 {
                 break;
             }
-
+            // a node in the tree
             table.push(TBLentry{
-                unk0: buf[idx-2],
-                unk1: buf[idx-1],
-                value: 0
+                left: buf[idx-2],
+                right: buf[idx-1],
+                value: None
             });
             buf[idx-2] = fin;
             fin += 1;
             idx -= 1;
         } else {
-            // integer entry?
+            // leaf on the tree
             let v: u8 = bits.read(8)?;
 
             table.push(TBLentry{
-                unk0: 0,
-                unk1: 0,
-                value: v,
+                left: 0,
+                right: 0,
+                value: Some(v),
             });
 
             if buf.len() <= idx {
@@ -158,14 +159,14 @@ fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32, VpkErr
     let mut idx = len - 1;
 
     // loop from end of the table to the beginning;
-    while tbl[idx].value == 0 {
+    while tbl[idx].value.is_none() {
         if bits.read_bit()? {
-            idx = tbl[idx].unk1 as usize;
+            idx = tbl[idx].right as usize;
         } else {
-            idx = tbl[idx].unk0 as usize;
+            idx = tbl[idx].left as usize;
         }
     }
 
-    let output: u32 = bits.read(tbl[idx].value as u32)?;
+    let output: u32 = bits.read(tbl[idx].value.unwrap() as u32)?;
     Ok(output)
 }
