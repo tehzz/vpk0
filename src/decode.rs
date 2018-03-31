@@ -12,18 +12,13 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     // convert Reader to BitReader
     let mut bit_reader = BitReader::<bBE>::new(&mut buf);
     // parse the header
-    let mut header = [0u8; 8];
+    let mut header = [0u8; 9];
     bit_reader.read_bytes(&mut header)?;
-    let header = parse_header(&header)?;
-
-    // currently only work with "mode 0" files (are there other modes?)
-    if header.mode != 0 { 
-        return Err(VpkError::UnsupportedMode(header.mode))
-    }
+    let header = VpkHeader::from_array(&header)?;
 
     // retrieve sample length?
-    let sample_length: u8 = bit_reader.read(8)?;
-    println!("sample_length: {}", sample_length);
+    let sample_length = header.method;
+    println!("sample_length: {:?}", sample_length);
     // build first huffman tree
     let movetree = build_table(&mut bit_reader)?;
     // build second huffman tree
@@ -37,19 +32,21 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
         if bit_reader.read_bit()? {
             // copy bytes from output
             let mut u = tbl_select(&mut bit_reader, &movetree)? as usize;
-            let p = if sample_length > 0 {
-                // two-sample backtrack lengths
-                let mut l = 0;
+            let p = match sample_length {
+                VpkMethod::TwoSample => {
+                    let mut l = 0;
 
-                if u < 3 {
-                    l = u + 1;
-                    u = tbl_select(&mut bit_reader, &movetree)? as usize;
-                }
-                output.len() - (u << 2) - l + 8
-            } else {
-                // one-sample backtrack lengths
-                output.len() - u
+                    if u < 3 {
+                        l = u + 1;
+                        u = tbl_select(&mut bit_reader, &movetree)? as usize;
+                    }
+                    output.len() - (u << 2) - l + 8
+                },
+                VpkMethod::OneSample => {
+                    output.len() - u
+                },
             };
+
             // have position in output, now grab length of bytes to copy
             let n = tbl_select(&mut bit_reader, &sizetree)? as usize;
             // append bytes from output to output?
@@ -67,27 +64,40 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
 
     Ok(output)
 }
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum VpkMethod {
+    TwoSample,
+    OneSample
+}
 /// Represents the 8 byte VPK header.
 /// "vpk", "mode", u32 size
-#[allow(dead_code)]
-struct VPKHeader {
+#[derive(Debug)]
+struct VpkHeader {
     /// Size of decompressed data
     size: u32,
     /// Mode number. Only 0?
-    mode: u8
+    mode: u8,
+    /// Sample length
+    method: VpkMethod,
 }
+impl VpkHeader {
+    /// Create a VPK0 header from an byte array
+    fn from_array(arr: &[u8; 9]) -> Result<Self, VpkError> {
+        let name = str::from_utf8(&arr[0..3])?;
+        if name != "vpk" { return Err(VpkError::InvalidHeader) }
+        // mode is encoded as ascii number
+        let mode = arr[3] - 48;
+        if mode != 0 { return Err(VpkError::UnsupportedMode(mode)) }
 
-///This functions checks for a proper vpk0 header, and if valid, parses the header
-fn parse_header(input: &[u8]) -> Result<VPKHeader, VpkError> {
-    if input.len() < 8 { return Err(VpkError::InvalidHeader) }
+        let size = BE::read_u32(&arr[4..8]);
+        let method = match arr[8] {
+            0 => VpkMethod::OneSample,
+            1 => VpkMethod::TwoSample,
+            err @ _ => return Err(VpkError::InvalidMethod(err))
+        };
 
-    let name = str::from_utf8(&input[0..3])?;
-    let mode = input[3] - 48;
-    let size = BE::read_u32(&input[4..8]);
-
-    if name != "vpk" { return Err(VpkError::InvalidHeader) }
-
-    Ok(VPKHeader{mode, size})
+        Ok( Self{mode, size, method} )
+    }
 }
 
 /// A Huffman table entry?
