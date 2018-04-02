@@ -8,9 +8,6 @@ pub enum VpkError {
     #[fail(display = "Invalid header for vpk file")]
     InvalidHeader,
 
-    #[fail(display = "VPK mode {} not supported", _0)]
-    UnsupportedMode(u8),
-
     #[fail(display = "VPK method {} is invalid and not supported", _0)]
     InvalidMethod(u8),
 
