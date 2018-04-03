@@ -5,7 +5,7 @@ use std::str;
 /// decompressed data, or vise-versa.
 #[derive(Fail, Debug)]
 pub enum VpkError {
-    #[fail(display = "Invalid header for vpk file")]
+    #[fail(display = "Invalid ascii string in header for vpk0 file")]
     InvalidHeader,
 
     #[fail(display = "VPK method {} is invalid and not supported", _0)]

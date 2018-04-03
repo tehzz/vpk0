@@ -96,7 +96,10 @@ impl VpkHeader {
     /// Create a VPK0 header from an byte array
     fn from_array(arr: &[u8; 9]) -> Result<Self, VpkError> {
         let name = str::from_utf8(&arr[0..4])?;
-        if name != "vpk0" { return Err(VpkError::InvalidHeader) }
+        if name != "vpk0" { 
+            error!("Expected 'vpk0' in header, saw '{}'", name);
+            return Err(VpkError::InvalidHeader) 
+        }
 
         let size = BE::read_u32(&arr[4..8]);
         let method = match arr[8] {
