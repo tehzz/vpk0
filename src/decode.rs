@@ -14,7 +14,6 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     let mut vpk0_bits = BitReader::<bBE>::new(&mut buf);
 
     let header = VpkHeader::from_bitreader(&mut vpk0_bits)?;
-    info!("\n**** vpk0 header ****\n{:?}", header);
     // read huffman trees from beginning of compressed input 
     let movetree = build_table(&mut vpk0_bits)?;
     let sizetree = build_table(&mut vpk0_bits)?;
@@ -23,6 +22,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
         let mut st = String::new();
         print_huffman_table(&movetree, movetree.len() - 1, &mut mt);
         print_huffman_table(&sizetree, sizetree.len() - 1, &mut st);
+        info!("\n**** vpk0 header ****\n{:?}", &header);
         info!("\n**** Move Tree ****\n{}", mt);
         info!("\n**** Size Tree ****\n{}", st);
     }
@@ -45,9 +45,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
                         (initial_move << 2) - 8
                     }
                 },
-                VpkMethod::OneSample => {
-                    initial_move
-                },
+                VpkMethod::OneSample => initial_move,
             };
 
             // get start position in output, and the number of bytes to copy-back
@@ -68,7 +66,6 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
                 trace!("\t{}: {}", i, byte);
                 output.push(byte);
             }
-
         } else {
             // push next byte from compressed input to output
             let byte = vpk0_bits.read(8)?;
@@ -79,6 +76,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
 
     Ok(output)
 }
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum VpkMethod {
     OneSample,
@@ -130,19 +128,17 @@ fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>, VpkError>
 {
     let mut table: Vec<TBLentry> = Vec::new();
     let mut buf: Vec<usize>      = Vec::new();
-    // current and final index
+    // index of most recent leaf (?)
     let mut idx = 0;
     // final index
     let mut fin = 0;
 
-    // main loop?
     loop {
         // read one bit from the stream
         if bits.read_bit()? {
-            if idx < 2 {
-                break;
-            }
-            // a node in the tree
+            // if there are less than two leaves, the tree is finished
+            if idx < 2 { break; }
+            // otherwise, add a node to the tree
             table.push(TBLentry{
                 left: buf[idx-2],
                 right: buf[idx-1],
