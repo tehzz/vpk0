@@ -116,12 +116,12 @@ impl VpkHeader {
     }
 }
 
-/// A Huffman table entry?
+/// A Huffman tree node or leaf designed to be made in an array
 struct TBLentry {
-    /// left? (0)
+    // left and right are offsets into the array  
     left: usize,
-    /// right? (1)
     right: usize,
+    // if None, entry is a node; if Some, entry is a leaf
     value: Option<u8>,
 }
 
@@ -197,6 +197,8 @@ fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32, VpkErr
     Ok(output)
 }
 
+/// Print a Huffman tree for debugging purposes. Each node is represented by a
+/// set of `(left, right)`, while the leaves are the values within the parentheses
 fn print_huffman_table<W>(table: &[TBLentry], entry: usize, mut buf: &mut W) 
     where W: Write 
 {
