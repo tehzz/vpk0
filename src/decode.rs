@@ -5,28 +5,29 @@ use std::fmt::Write;
 use std::str;
 use byteorder::{BE, ByteOrder};
 use bitstream_io::{BE as bBE, BitReader};
+use log::Level::{*};
 
 /// Decode a Reader of vpk0 data into a Vec of the decompressed data
 pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     where R: Read
 {
     let mut vpk0_bits = BitReader::<bBE>::new(&mut buf);
-    let mut header = [0u8; 9];
-    vpk0_bits.read_bytes(&mut header)?;
-    let header = VpkHeader::from_array(&header)?;
 
-    println!("vpk0 header:\n{:?}", header);
-    // read huffman trees
+    let header = VpkHeader::from_bitreader(&mut vpk0_bits)?;
+    info!("\n**** vpk0 header ****\n{:?}", header);
+    // read huffman trees from beginning of compressed input 
     let movetree = build_table(&mut vpk0_bits)?;
     let sizetree = build_table(&mut vpk0_bits)?;
-    let mut mt = String::new();
-    let mut st = String::new();
-    print_huffman_table(&movetree, movetree.len() - 1, &mut mt);
-    print_huffman_table(&sizetree, sizetree.len() - 1, &mut st);
-    println!("move tree:\n{}", mt);
-    println!("size tree:\n{}", st);
+    if log_enabled!(Info) {
+        let mut mt = String::new();
+        let mut st = String::new();
+        print_huffman_table(&movetree, movetree.len() - 1, &mut mt);
+        print_huffman_table(&sizetree, sizetree.len() - 1, &mut st);
+        info!("\n**** Move Tree ****\n{}", mt);
+        info!("\n**** Size Tree ****\n{}", st);
+    }
 
-    // finally, start decoding the input buffer
+    // start decoding the compressed input buffer
     let output_size = header.size as usize;
     let mut output: Vec<u8> = Vec::with_capacity(output_size);
 
@@ -50,19 +51,29 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
             };
 
             // get start position in output, and the number of bytes to copy-back
+            if move_back > output.len() {
+                error!("Bad input file: asked to copy back bytes from outside of decoded output buffer");
+                error!("move back: {} | output length: {}", move_back, output.len());
+                return Err(VpkError::BadInput)
+            }
             let p = output.len() - move_back;
             let n = tbl_select(&mut vpk0_bits, &sizetree)? as usize;
-            println!("{} | start: {} | size: {} | length: {}", p < output.len(), p, n, output.len());
+            debug!("start: {} | size: {} | length: {}", p, n, output.len());
             
             // append bytes from somewhere in output to the end of output
+            // this needs to be done byte-by-byte, as the range can include 
+            // newly added bytes 
             for i in p..p+n {
                 let byte = output[i];
+                trace!("\t{}: {}", i, byte);
                 output.push(byte);
             }
 
         } else {
             // push next byte from compressed input to output
-            output.push(vpk0_bits.read(8)?);
+            let byte = vpk0_bits.read(8)?;
+            trace!("{}", byte);
+            output.push(byte);
         }
     }
 
@@ -96,6 +107,13 @@ impl VpkHeader {
 
         Ok( Self{size, method} )
     }
+    /// Convenience function to read the vpk0 header from a bitstream
+    fn from_bitreader(reader: &mut BitReader<bBE>) -> Result<Self, VpkError> {
+        let mut header = [0u8; 9];
+        reader.read_bytes(&mut header)?;
+
+        Self::from_array(&header)
+    }
 }
 
 /// A Huffman table entry?
@@ -111,7 +129,7 @@ struct TBLentry {
 fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>, VpkError> 
 {
     let mut table: Vec<TBLentry> = Vec::new();
-    let mut buf: Vec<usize>   = Vec::new();
+    let mut buf: Vec<usize>      = Vec::new();
     // current and final index
     let mut idx = 0;
     // final index
@@ -180,7 +198,7 @@ fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32, VpkErr
 }
 
 fn print_huffman_table<W>(table: &[TBLentry], entry: usize, mut buf: &mut W) 
-where W: Write 
+    where W: Write 
 {
     let entry = &table[entry];
     if let Some(val) = entry.value {

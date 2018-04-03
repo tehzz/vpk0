@@ -11,6 +11,9 @@ pub enum VpkError {
     #[fail(display = "VPK method {} is invalid and not supported", _0)]
     InvalidMethod(u8),
 
+    #[fail(display = "Input was bad; check log for more info")]
+    BadInput,
+    
     #[fail(display = "{}", _0)]
     Utf8Error(#[cause] str::Utf8Error),
 
