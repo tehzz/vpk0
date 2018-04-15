@@ -1,11 +1,11 @@
 use errors::{VpkError};
 
 use std::io::{Read};
-use std::fmt::Write;
+use std::fmt;
 use std::str;
 use byteorder::{BE, ByteOrder};
 use bitstream_io::{BE as bBE, BitReader};
-use log::Level::{*};
+use log::Level::{Info};
 
 /// Decode a Reader of vpk0 data into a Vec of the decompressed data
 pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
@@ -15,17 +15,15 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
 
     let header = VpkHeader::from_bitreader(&mut vpk0_bits)?;
     // read huffman trees from beginning of compressed input 
-    let movetree = build_table(&mut vpk0_bits)?;
-    let sizetree = build_table(&mut vpk0_bits)?;
+    let movetree = HuffTree::from_bitreader(&mut vpk0_bits)?;
+    let sizetree = HuffTree::from_bitreader(&mut vpk0_bits)?;
+
     if log_enabled!(Info) {
-        let mut mt = String::new();
-        let mut st = String::new();
-        print_huffman_table(&movetree, movetree.len() - 1, &mut mt);
-        print_huffman_table(&sizetree, sizetree.len() - 1, &mut st);
         info!("\n**** vpk0 header ****\n{:?}", &header);
-        info!("\n**** Move Tree ****\n{}", mt);
-        info!("\n**** Size Tree ****\n{}", st);
+        info!("\n**** Move Tree ****\n{}", movetree);
+        info!("\n**** Size Tree ****\n{}", sizetree);
     }
+
 
     // start decoding the compressed input buffer
     let output_size = header.size as usize;
@@ -34,12 +32,12 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
     while output.len() < output_size {
         if vpk0_bits.read_bit()? {
             // copy bytes from inside the output back at the end of the output
-            let initial_move = tbl_select(&mut vpk0_bits, &movetree)? as usize;
+            let initial_move = movetree.read_value(&mut vpk0_bits)? as usize;
             let move_back    = match header.method {
                 VpkMethod::TwoSample => {
                     if initial_move < 3 {
                         let l = initial_move + 1;
-                        let u = tbl_select(&mut vpk0_bits, &movetree)? as usize;
+                        let u = movetree.read_value(&mut vpk0_bits)? as usize;
                         (l + (u << 2)) - 8
                     } else {
                         (initial_move << 2) - 8
@@ -55,7 +53,7 @@ pub fn decode<R>(mut buf: R) -> Result<Vec<u8>, VpkError>
                 return Err(VpkError::BadInput)
             }
             let p = output.len() - move_back;
-            let n = tbl_select(&mut vpk0_bits, &sizetree)? as usize;
+            let n = sizetree.read_value(&mut vpk0_bits)? as usize;
             debug!("start: {} | size: {} | length: {}", p, n, output.len());
             
             // append bytes from somewhere in output to the end of output
@@ -117,8 +115,9 @@ impl VpkHeader {
     }
 }
 
-/// A Huffman tree node or leaf designed to be made in an array
-struct TBLentry {
+/// A Huffman tree node or leaf designed to be stored in an array
+#[derive(Debug)]
+struct TreeNode {
     // left and right are offsets into the array  
     left: usize,
     right: usize,
@@ -126,89 +125,87 @@ struct TBLentry {
     value: Option<u8>,
 }
 
-///Build a Huffman table?
-fn build_table(bits: &mut BitReader<bBE>) -> Result<Vec<TBLentry>, VpkError> 
-{
-    let mut table: Vec<TBLentry> = Vec::new();
-    let mut buf: Vec<usize>      = Vec::new();
-    // index of most recent leaf (?)
-    let mut idx = 0;
-    // final index
-    let mut fin = 0;
+/// An array based huffman tree
+#[derive(Debug)]
+struct HuffTree {
+    nodes: Vec<TreeNode>
+}
 
-    loop {
-        // read one bit from the stream
-        if bits.read_bit()? {
-            // if there are less than two leaves, the tree is finished
-            if idx < 2 { break; }
-            // otherwise, add a node to the tree
-            table.push(TBLentry{
-                left: buf[idx-2],
-                right: buf[idx-1],
-                value: None
-            });
-            buf[idx-2] = fin;
-            fin += 1;
-            idx -= 1;
-        } else {
-            // leaf on the tree
-            let v: u8 = bits.read(8)?;
+impl HuffTree {
+    fn from_bitreader(bits: &mut BitReader<bBE>) -> Result<Self, VpkError> {
+        let mut nodes: Vec<TreeNode> = Vec::new();
+        let mut buf: Vec<usize>      = Vec::new();
+        
+        let mut idx = 0;        // free node count
+        let mut fin = 0;        // most recently added node
 
-            table.push(TBLentry{
-                left: 0,
-                right: 0,
-                value: Some(v),
-            });
+        loop {
+            if bits.read_bit()? {
+                // create node at a higher level,
+                // if there are more than two leaves/nodes to combine 
+                if idx < 2 { break; }
 
-            if buf.len() <= idx {
-                buf.push(fin);
+                nodes.push( TreeNode {
+                    left:  buf[idx-2],
+                    right: buf[idx-1],
+                    value: None,
+                });
+                buf[idx - 2] = fin;
+                fin += 1;
+                idx -= 1;
             } else {
-                buf[idx] = fin;
+                // add a leaf node with an 8-bit value
+                nodes.push( TreeNode {
+                    left: 0, right: 0,
+                    value: Some(bits.read(8)?)
+                });
+
+                if buf.len() <= idx {
+                    buf.push(fin);
+                } else {
+                    buf[idx] = fin;
+                }
+                fin += 1;
+                idx += 1;
             }
-
-            fin += 1;
-            idx += 1;
         }
+
+        Ok(Self{nodes})
     }
 
-    Ok(table)
-}
+    fn read_value(&self, bits: &mut BitReader<bBE>) -> Result<u32, VpkError> {
+        let tbl = &self.nodes;
+        let len = tbl.len();
+        if len == 0 { return Ok(0) };
+        let mut idx = len - 1;
 
-// Find "non-reference" entry in the table? Return the width of that entry?
-fn tbl_select(bits: &mut BitReader<bBE>, tbl: &[TBLentry]) -> Result<u32, VpkError>
-{
-    // start at final entry
-    let len = tbl.len();
-    if len == 0 { return Ok(0) };
+        while tbl[idx].value.is_none() {
+            if bits.read_bit()? {
+                idx = tbl[idx].right;
+            } else {
+                idx = tbl[idx].left;
+            }
+        }
+        let output = bits.read(tbl[idx].value.unwrap() as u32)?;
+        Ok(output) 
+    }
 
-    let mut idx = len - 1;
-
-    // loop from end of the table to the beginning;
-    while tbl[idx].value.is_none() {
-        if bits.read_bit()? {
-            idx = tbl[idx].right;
+    fn _format_entry(&self, entry: usize, f: &mut fmt::Formatter) -> fmt::Result {
+        let node = &self.nodes[entry];
+        if let Some(val) = node.value {
+            write!(f, "{}", val)
         } else {
-            idx = tbl[idx].left;
+            write!(f, "(")?;
+            self._format_entry(node.left, f)?;
+            write!(f, ", ")?;
+            self._format_entry(node.right, f)?;
+            write!(f, ")")
         }
     }
-
-    let output: u32 = bits.read(tbl[idx].value.unwrap() as u32)?;
-    Ok(output)
 }
 
-/// Print a Huffman tree for debugging purposes. Each node is represented by a
-/// set of `(left, right)`, while the leaves are the values within the parentheses
-fn print_huffman_table<W>(table: &[TBLentry], entry: usize, mut buf: &mut W) 
-    where W: Write 
-{
-    let entry = &table[entry];
-    if let Some(val) = entry.value {
-        write!(&mut buf, "{}", val).unwrap();
-    } else {
-        write!(&mut buf, "(").unwrap();
-        print_huffman_table(table, entry.left, buf);
-        write!(&mut buf, ",").unwrap();
-        print_huffman_table(table, entry.right, buf);
-        write!(&mut buf, ")").unwrap();
+impl fmt::Display for HuffTree {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self._format_entry(self.nodes.len() - 1, f)
     }
 }
