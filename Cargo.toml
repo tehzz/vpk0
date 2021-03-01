@@ -1,13 +1,11 @@
 [package]
 name = "vpk0"
-version = "0.1.0"
+version = "0.8.0"
 authors = ["tehzz"]
+edition = "2018"
 
 [dependencies]
-byteorder = "1.1.0"
-bitstream-io = "0.6.1"
-failure = "0.1.1"
-log = "0.4.1"
-
-[dev-dependencies]
-simple_logger = "0.5.0"
+bitstream-io = "0.8.2"
+slice-deque = "0.3.0"
+err-derive = "0.2.3"
+smallvec = {version = "1.6.1", features = ["union"]}
