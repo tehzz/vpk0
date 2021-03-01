@@ -9,28 +9,28 @@ use slice_deque::SliceDeque;
 
 use crate::{errors::VpkError, format::VpkMethod};
 
-use super::{BitSize, Frequency, LzssBackend, TwoSample, count_needed_bits};
+use super::{count_needed_bits, BitSize, Frequency, LzssBackend, TwoSample};
 
 /// Configure the LZSS encoding that underlies `vpk0` compression
-/// 
-/// You can set the three key [LZSS parameters]: dictionary size, maximum match size, 
-/// and minimum match size. When using [`new`](LzssSettings::new) or `struct` 
-/// literals, you are setting the total number of bits for the dictionary or max match, 
+///
+/// You can set the three key [LZSS parameters]: dictionary size, maximum match size,
+/// and minimum match size. When using [`new`](LzssSettings::new) or `struct`
+/// literals, you are setting the total number of bits for the dictionary or max match,
 /// but the minimum match size is in bytes. If you'd prefer to set everything in terms
 /// of bytes, you can use [`byte_sized`](LzssSettings::byte_sized). Note that any
 /// non-power-of-two byte sizes will be rounded up for the dictionary and max match.
-/// 
+///
 /// By [`default`](LzssSettings::default):
-/// 
+///
 /// | Parameter  | Field       | Bit Size | Bytes |
 /// | ---------- | ----------- | :------: | :---: |
 /// | Dictionary | offset_bits | 16       | 65536 |
 /// | Max Match  | length_bits | 8        | 256   |
 /// | Min Match  | max_uncoded |          | 2     |
-/// 
-/// These settings were used by Nintendo when compressing the files 
+///
+/// These settings were used by Nintendo when compressing the files
 /// in **Super Smash Bros. 64**.
-/// 
+///
 /// [LZSS parameters]: https://michaeldipperstein.github.io/lzss.html
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LzssSettings {
@@ -53,11 +53,15 @@ impl LzssSettings {
             max_uncoded,
         }
     }
-    
+
     pub const fn byte_sized(dictionary: usize, max_match: usize, min_match: usize) -> Self {
         let offset_bits = count_needed_bits(dictionary) as usize;
         let size_bits = count_needed_bits(max_match) as usize;
-        Self { offset_bits, length_bits: size_bits, max_uncoded: min_match }
+        Self {
+            offset_bits,
+            length_bits: size_bits,
+            max_uncoded: min_match,
+        }
     }
 
     const fn window_size(&self) -> usize {
@@ -74,7 +78,13 @@ impl LzssSettings {
 }
 
 impl Default for LzssSettings {
-    fn default() -> Self { Self { offset_bits: 16, length_bits: 8, max_uncoded: 2 } }
+    fn default() -> Self {
+        Self {
+            offset_bits: 16,
+            length_bits: 8,
+            max_uncoded: 2,
+        }
+    }
 }
 
 #[derive(Debug)]

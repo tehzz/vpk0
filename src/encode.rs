@@ -10,18 +10,17 @@ use std::{
     path::Path,
 };
 
-pub(crate) mod lzss;
 mod huffman;
+pub(crate) mod lzss;
 
 use self::{
-    lzss::{LzssByte, LzssPass, LzssSettings},
     huffman::{EncodedMaps, MapTree},
+    lzss::{LzssByte, LzssPass, LzssSettings},
 };
 
 type BitSize = u8;
 type Frequency = u64;
 type LogWtr<'a> = &'a mut dyn Write;
-
 
 /// The algorithm used to find matches when encoding a `vpk0` file
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,7 +32,6 @@ pub enum LzssBackend {
     /// Nintendo matching search with a modified, slower Knuth–Morris–Pratt algorithm
     KmpAhead,
 }
-
 
 /// Specify the encoding settings, such as window size, logging, input, and output
 ///

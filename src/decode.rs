@@ -14,13 +14,13 @@ type RawTrees = [VpkTree; 2];
 
 /// Textual representations of the offsets and lengths Huffman trees in a `vpk0` file
 ///
-/// The trees are comprised of decimal numbers—the leafs—separated by commas and parentheses—the nodes. 
-/// The trees also follow the typical Huffman Tree convention of `0` for left nodes 
+/// The trees are comprised of decimal numbers—the leafs—separated by commas and parentheses—the nodes.
+/// The trees also follow the typical Huffman Tree convention of `0` for left nodes
 /// and `1` for right nodes. So, if you have `((4, 1), (8, (15, 10))`,
-/// `4` would have the Huffman code `00` and `15` would have the Huffman code `110`. 
-/// 
-/// You can get a `TreeInfo` by using [`vpk_info`] or [`DecoderBuilder::trees`]. 
-/// The `String`s can then be used by [`EncoderBuilder::with_offsets`] (and related functions) 
+/// `4` would have the Huffman code `00` and `15` would have the Huffman code `110`.
+///
+/// You can get a `TreeInfo` by using [`vpk_info`] or [`DecoderBuilder::trees`].
+/// The `String`s can then be used by [`EncoderBuilder::with_offsets`] (and related functions)
 /// to set the offsets and lengths tree in a new encode.
 ///
 /// [`EncoderBuilder::with_offsets`]: crate::EncoderBuilder::with_offsets()
@@ -40,8 +40,8 @@ impl From<&RawTrees> for TreeInfo {
 }
 
 /// Specify the decoding settings, such as logging, input, and output.
-/// 
-/// To create a new `DecoderBuilder`, use [`for_reader()`], [`for_bytes()`], or 
+///
+/// To create a new `DecoderBuilder`, use [`for_reader()`], [`for_bytes()`], or
 /// [`for_file()`]. Then, change any of the decoder settings.
 /// Finally, decode the input data with [`decode`].
 /// ```
@@ -142,7 +142,7 @@ impl<'a> DecoderBuilder<'a, BufReader<File>> {
 
 /// Decompress `vpk0` data into a `Vec<u8>`
 ///
-/// This is a convenience function to decode a `Read`er without 
+/// This is a convenience function to decode a `Read`er without
 /// having to import and set up a [`DecoderBuilder`]
 pub fn decode<R: Read>(rdr: R) -> Result<Vec<u8>, VpkError> {
     DecoderBuilder::for_reader(rdr).decode()

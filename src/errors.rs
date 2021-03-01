@@ -29,11 +29,11 @@ pub enum VpkError {
 }
 
 /// Possible errors from parsing a user provided Huffman Tree
-/// 
-/// These errors can occur when a user passes a bad Huffman Tree to 
+///
+/// These errors can occur when a user passes a bad Huffman Tree to
 /// the [`with_offsets`], [`with_lengths`], [`optional_offsets`], or [`optional_lengths`]
 /// methods of a [`EncoderBuilder`](crate::EncoderBuilder).
-/// 
+///
 /// [`with_offsets`]: crate::EncoderBuilder::with_offsets
 /// [`with_lengths`]: crate::EncoderBuilder::with_lengths
 /// [`optional_offsets`]: crate::EncoderBuilder::optional_offsets

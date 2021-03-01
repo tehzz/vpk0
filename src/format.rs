@@ -19,7 +19,7 @@
 //! ## Huffman Trees
 //! After the header, there are two linearly encoded Huffman trees: one for the offsets,
 //! and one for the lengths.
-//! The two trees can be extracted into their `String` representations as [`TreeInfo`] 
+//! The two trees can be extracted into their `String` representations as [`TreeInfo`]
 //! by using [`vpk_info()`].
 //!
 //! Tree leafs are encoded as a `0` followed by an eight bit value leaf.
@@ -98,14 +98,14 @@ use std::str;
 // makes more sense to be here for users, imho
 pub use crate::decode::TreeInfo;
 
-/// Valid lookback methods for a VPK compressed file. 
-/// 
-/// `OneSample` directly encodes the offset value in stream, 
+/// Valid lookback methods for a VPK compressed file.
+///
+/// `OneSample` directly encodes the offset value in stream,
 /// while `TwoSample` encodes a modified form of the offset as either one
 /// or two values.
 ///
 /// The two sample mode encodes an offset by adding eight to the original value,
-/// then dividing that value by four. If there is no remainder, 
+/// then dividing that value by four. If there is no remainder,
 /// the quotient is stored as a single sample. Otherwise,
 /// the `remainder - 1` is stored followed by the quotient
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
