@@ -3,6 +3,7 @@ name = "vpk0"
 version = "0.8.0"
 authors = ["tehzz"]
 edition = "2018"
+license = "MIT"
 
 [dependencies]
 bitstream-io = "0.8.2"
