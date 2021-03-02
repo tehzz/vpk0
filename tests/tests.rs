@@ -1,17 +1,80 @@
 use std::io::Cursor;
-use std::str::from_utf8;
+use vpk0::LzssBackend::{self, *};
+
+const LOGO: &[u8] = include_bytes!("small-logo.png");
+const BACKENDS: &[LzssBackend] = &[Brute, Kmp, KmpAhead];
+const VPK_METHOD0: &[u8] = include_bytes!("method0.vpk0");
+const RAW_METHOD0: &[u8] = include_bytes!("method0-orig.bin");
+const VPK_METHOD1: &[u8] = include_bytes!("method1.vpk0");
+const RAW_METHOD1: &[u8] = include_bytes!("method1-orig.bin");
 
 #[test]
 fn decode_method0() {
-    let lorem_text = include_str!("lorem.txt");
-    let lorem_vpk0 = include_bytes!("lorem.vpk0");
+    let decoded = vpk0::DecoderBuilder::for_bytes(VPK_METHOD0)
+        .decode()
+        .expect("working decode");
 
-    let mut lorem_reader = Cursor::new(lorem_vpk0.as_ref());
+    assert_eq!(decoded, RAW_METHOD0, "decoding method 0");
+}
 
-    let decoded = vpk0::decode(&mut lorem_reader).unwrap();
-    let decoded_str = from_utf8(&decoded).unwrap();
+#[test]
+fn encode_method0() {
+    for &backend in BACKENDS {
+        vpk0::EncoderBuilder::for_bytes(LOGO)
+            .one_sample()
+            .lzss_backend(backend)
+            .encode_to_vec()
+            .expect(&format!("valid encode for {:?}", backend));
+    }
+}
 
-    assert_eq!(decoded_str, lorem_text);
+#[test]
+fn match_method0() {
+    let (_header, trees) = vpk0::vpk_info(Cursor::new(VPK_METHOD0)).unwrap();
+
+    let compressed = vpk0::EncoderBuilder::for_bytes(RAW_METHOD0)
+        .one_sample()
+        .lzss_backend(Brute)
+        .with_lengths(&trees.lengths)
+        .with_offsets(&trees.offsets)
+        .encode_to_vec()
+        .unwrap();
+
+    assert_eq!(compressed, VPK_METHOD0);
+}
+
+#[test]
+fn decode_method1() {
+    let mut reader = Cursor::new(VPK_METHOD1);
+    let decoded = vpk0::decode(&mut reader).unwrap();
+
+    assert_eq!(decoded, RAW_METHOD1, "error method 1");
+}
+
+#[test]
+fn encode_method1() {
+    for &backend in BACKENDS {
+        vpk0::EncoderBuilder::for_bytes(LOGO)
+            .two_sample()
+            .lzss_backend(backend)
+            .encode_to_vec()
+            .expect(&format!("valid encode for {:?}", backend));
+    }
+}
+
+#[test]
+fn match_method1() {
+    let (_header, trees) = vpk0::vpk_info(Cursor::new(VPK_METHOD1)).unwrap();
+
+    let compressed = vpk0::EncoderBuilder::for_bytes(RAW_METHOD1)
+        .two_sample()
+        .lzss_backend(Brute)
+        .with_lengths(&trees.lengths)
+        .with_offsets(&trees.offsets)
+        .encode_to_vec()
+        .unwrap();
+
+    assert_eq!(compressed, VPK_METHOD1);
 }
 
 #[test]
@@ -31,19 +94,4 @@ fn decode_bad_file() {
             assert!(true)
         }
     };
-}
-
-#[test]
-fn decode_method1() {
-    let uncompressed = include_bytes!("file39.bin");
-    let compressed = include_bytes!("file39-raw.vpk0");
-
-    let mut reader = Cursor::new(compressed.as_ref());
-    let decoded = vpk0::decode(&mut reader).unwrap();
-
-    assert_eq!(
-        uncompressed.as_ref(),
-        decoded.as_slice(),
-        "error decoding file 39"
-    );
 }
