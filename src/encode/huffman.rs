@@ -176,6 +176,7 @@ impl FromIterator<SizeFreq> for Tree {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<VpkTree> for Tree {
     fn into(self) -> VpkTree {
         let mut flat = Vec::new();

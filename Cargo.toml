@@ -8,5 +8,4 @@ license = "MIT"
 [dependencies]
 bitstream-io = "0.8.2"
 slice-deque = "0.3.0"
-err-derive = "0.2.3"
 smallvec = {version = "1.6.1", features = ["union"]}
