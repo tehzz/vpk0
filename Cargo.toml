@@ -17,3 +17,9 @@ smallvec = {version = "1.6.1", features = ["union"]}
 
 [badges]
 github = {repository = "tehzz/vpk0"}
+
+[profile.test]
+opt-level = 3
+
+[profile.test.package."*"]
+opt-level = 3
