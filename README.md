@@ -1,3 +1,5 @@
+[![Workflow Status](https://github.com/tehzz/vpk0/workflows/main/badge.svg)](https://github.com/tehzz/vpk0/actions?query=workflow%3A%22main%22)
+
 # vpk0
 
 A Rust library for handling Nintendo's N64-era `vpk0` data compression
