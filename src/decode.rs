@@ -19,11 +19,11 @@ type RawTrees = [VpkTree; 2];
 /// and `1` for right nodes. So, if you have `((4, 1), (8, (15, 10))`,
 /// `4` would have the Huffman code `00` and `15` would have the Huffman code `110`.
 ///
-/// You can get a `TreeInfo` by using [`vpk_info`] or [`DecoderBuilder::trees`].
-/// The `String`s can then be used by [`EncoderBuilder::with_offsets`] (and related functions)
+/// You can get a `TreeInfo` by using [`vpk_info`] or [`Decoder::trees`].
+/// The `String`s can then be used by [`Encoder::with_offsets`] (and related functions)
 /// to set the offsets and lengths tree in a new encode.
 ///
-/// [`EncoderBuilder::with_offsets`]: crate::EncoderBuilder::with_offsets()
+/// [`Encoder::with_offsets`]: crate::Encoder::with_offsets()
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TreeInfo {
     pub offsets: String,
@@ -41,43 +41,43 @@ impl From<&RawTrees> for TreeInfo {
 
 /// Specify the decoding settings, such as logging, input, and output.
 ///
-/// To create a new `DecoderBuilder`, use [`for_reader()`], [`for_bytes()`], or
+/// To create a new `Decoder`, use [`for_reader()`], [`for_bytes()`], or
 /// [`for_file()`]. Then, change any of the decoder settings.
 /// Finally, decode the input data with [`decode`].
 /// ```
-/// # use vpk0::{EncoderBuilder, DecoderBuilder};
+/// # use vpk0::{Encoder, Decoder};
 /// let original = b"ABBACABBACD";
-/// let compressed = EncoderBuilder::for_bytes(original)
+/// let compressed = Encoder::for_bytes(original)
 ///     .encode_to_vec()
 ///     .unwrap();
-/// let decompressed = DecoderBuilder::for_bytes(&compressed)
+/// let decompressed = Decoder::for_bytes(&compressed)
 ///     .decode()
 ///     .unwrap();
 /// assert_eq!(&original[..], decompressed);
 /// ```
-/// You can use a `DecoderBuilder` to get the [`VpkHeader`] with [`header()`]
+/// You can use a `Decoder` to get the [`VpkHeader`] with [`header()`]
 ///  or [`TreeInfo`] with [`trees()`]:
 /// ```
-/// # use vpk0::{EncoderBuilder, DecoderBuilder};
+/// # use vpk0::{Encoder, Decoder};
 /// # let original = b"ABBACABBACD";
-/// # let compressed = EncoderBuilder::for_bytes(original).encode_to_vec().unwrap();
-/// let mut decoder = DecoderBuilder::for_bytes(&compressed);
+/// # let compressed = Encoder::for_bytes(original).encode_to_vec().unwrap();
+/// let mut decoder = Decoder::for_bytes(&compressed);
 /// let size = decoder.header().unwrap().size as usize;
 /// assert_eq!(size, original.len());
 /// ```
-/// [`for_reader()`]: DecoderBuilder::for_reader
-/// [`for_bytes()`]: DecoderBuilder::for_bytes
-/// [`for_file()`]: DecoderBuilder::for_file
-/// [`decode()`]: DecoderBuilder::decode
-/// [`header()`]: DecoderBuilder::header
-/// [`trees()`]: DecoderBuilder::trees
-pub struct DecoderBuilder<'a, R: Read> {
+/// [`for_reader()`]: Decoder::for_reader
+/// [`for_bytes()`]: Decoder::for_bytes
+/// [`for_file()`]: Decoder::for_file
+/// [`decode()`]: Decoder::decode
+/// [`header()`]: Decoder::header
+/// [`trees()`]: Decoder::trees
+pub struct Decoder<'a, R: Read> {
     src: BitReader<R, BigEndian>,
     log: Option<LogWtr<'a>>,
     info: Option<(VpkHeader, RawTrees)>,
 }
 
-impl<'a, R: Read> DecoderBuilder<'a, R> {
+impl<'a, R: Read> Decoder<'a, R> {
     #[inline]
     pub fn for_reader(rdr: R) -> Self {
         Self {
@@ -122,7 +122,7 @@ impl<'a, R: Read> DecoderBuilder<'a, R> {
     }
 }
 
-impl<'a> DecoderBuilder<'a, Cursor<&'a [u8]>> {
+impl<'a> Decoder<'a, Cursor<&'a [u8]>> {
     #[inline]
     pub fn for_bytes(bytes: &'a [u8]) -> Self {
         let rdr = Cursor::new(bytes);
@@ -130,7 +130,7 @@ impl<'a> DecoderBuilder<'a, Cursor<&'a [u8]>> {
     }
 }
 
-impl<'a> DecoderBuilder<'a, BufReader<File>> {
+impl<'a> Decoder<'a, BufReader<File>> {
     #[inline]
     pub fn for_file<P: AsRef<Path>>(p: P) -> Result<Self, VpkError> {
         File::open(p)
@@ -143,24 +143,24 @@ impl<'a> DecoderBuilder<'a, BufReader<File>> {
 /// Decompress `vpk0` data into a `Vec<u8>`
 ///
 /// This is a convenience function to decode a `Read`er without
-/// having to import and set up a [`DecoderBuilder`]
+/// having to import and set up a [`Decoder`]
 pub fn decode<R: Read>(rdr: R) -> Result<Vec<u8>, VpkError> {
-    DecoderBuilder::for_reader(rdr).decode()
+    Decoder::for_reader(rdr).decode()
 }
 
 /// Extract the [`VpkHeader`] and [`TreeInfo`] from `vpk0` data
 ///
 /// This is a convenience function to extract information about `vpk0` data without having
-/// to set up a [`DecoderBuilder`]
+/// to set up a [`Decoder`]
 pub fn vpk_info<R: Read>(rdr: R) -> Result<(VpkHeader, TreeInfo), VpkError> {
-    let mut decoder = DecoderBuilder::for_reader(rdr);
+    let mut decoder = Decoder::for_reader(rdr);
 
     decoder
         .header()
         .and_then(|hdr| decoder.trees().map(|t| (hdr, t)))
 }
 
-fn do_decode<R: Read>(opt: &mut DecoderBuilder<R>) -> Result<Vec<u8>, VpkError> {
+fn do_decode<R: Read>(opt: &mut Decoder<R>) -> Result<Vec<u8>, VpkError> {
     let info = if let Some(info) = opt.info.as_ref() {
         info
     } else {
@@ -168,7 +168,7 @@ fn do_decode<R: Read>(opt: &mut DecoderBuilder<R>) -> Result<Vec<u8>, VpkError> 
         opt.info.as_ref().unwrap()
     };
     let &(header, [ref offsets, ref lengths]) = info;
-    let DecoderBuilder { src, log, .. } = opt;
+    let Decoder { src, log, .. } = opt;
 
     // set up the log with a map to store the bitsizes of the offsets and lengths
     let mut log = log.as_mut().map(|l| (l, LogFreq::new()));

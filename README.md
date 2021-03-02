@@ -27,12 +27,12 @@ let decompressed = decode(Cursor::new(&compressed)).unwrap();
 assert_eq!(&data, &decompressed);
 ```
 
-For more control, you can use [`DecoderBuilder`] or [`EncoderBuilder`]:
+For more control, you can use [`Decoder`] or [`Encoder`]:
 
 ```rust
-use vpk0::EncoderBuilder;
+use vpk0::Encoder;
 
-EncoderBuilder::for_bytes(b"ababacdcdeaba")
+Encoder::for_bytes(b"ababacdcdeaba")
     .two_sample()
     .encode_to_writer(std::io::stdout())
     .unwrap();
@@ -76,7 +76,7 @@ a smaller or no match is found.
 
 The encoder in this crate checks at most the next ten bytes,
 as that was the maximum number necessary to match all 500 `vpk0` encoded files in *SSB64*.
-In the future, this parameter may become another option for [`EncoderBuilder`].
+In the future, this parameter may become another option for [`Encoder`].
 
 ### Advanced Usages
 #### Getting info from a `vpk0` file
@@ -90,9 +90,9 @@ println!("Offsets: {} || Lengths: {}", trees.offsets, trees.lengths);
 
 #### Encode like a standard LZSS
 ```rust
-use vpk0::{EncoderBuilder, LzssSettings};
+use vpk0::{Encoder, LzssSettings};
 // use fixed length compression by setting the offset to 10 and the length to 6.
-let compressed = EncoderBuilder::for_bytes(b"I am Sam. Sam I am.")
+let compressed = Encoder::for_bytes(b"I am Sam. Sam I am.")
     .one_sample()
     .with_lzss_settings(LzssSettings::new(10, 6, 2))
     .with_offsets("10")

@@ -10,7 +10,7 @@ const RAW_METHOD1: &[u8] = include_bytes!("method1-orig.bin");
 
 #[test]
 fn decode_method0() {
-    let decoded = vpk0::DecoderBuilder::for_bytes(VPK_METHOD0)
+    let decoded = vpk0::Decoder::for_bytes(VPK_METHOD0)
         .decode()
         .expect("working decode");
 
@@ -20,7 +20,7 @@ fn decode_method0() {
 #[test]
 fn encode_method0() {
     for &backend in BACKENDS {
-        vpk0::EncoderBuilder::for_bytes(LOGO)
+        vpk0::Encoder::for_bytes(LOGO)
             .one_sample()
             .lzss_backend(backend)
             .encode_to_vec()
@@ -32,7 +32,7 @@ fn encode_method0() {
 fn match_method0() {
     let (_header, trees) = vpk0::vpk_info(Cursor::new(VPK_METHOD0)).unwrap();
 
-    let compressed = vpk0::EncoderBuilder::for_bytes(RAW_METHOD0)
+    let compressed = vpk0::Encoder::for_bytes(RAW_METHOD0)
         .one_sample()
         .lzss_backend(Brute)
         .with_lengths(&trees.lengths)
@@ -54,7 +54,7 @@ fn decode_method1() {
 #[test]
 fn encode_method1() {
     for &backend in BACKENDS {
-        vpk0::EncoderBuilder::for_bytes(LOGO)
+        vpk0::Encoder::for_bytes(LOGO)
             .two_sample()
             .lzss_backend(backend)
             .encode_to_vec()
@@ -66,7 +66,7 @@ fn encode_method1() {
 fn match_method1() {
     let (_header, trees) = vpk0::vpk_info(Cursor::new(VPK_METHOD1)).unwrap();
 
-    let compressed = vpk0::EncoderBuilder::for_bytes(RAW_METHOD1)
+    let compressed = vpk0::Encoder::for_bytes(RAW_METHOD1)
         .two_sample()
         .lzss_backend(Brute)
         .with_lengths(&trees.lengths)

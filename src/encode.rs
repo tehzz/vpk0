@@ -35,13 +35,13 @@ pub enum LzssBackend {
 
 /// Specify the encoding settings, such as window size, logging, input, and output
 ///
-/// To create a new `EncoderBuilder`, use [`for_reader()`], [`for_file()`], or [`for_bytes()`].
-/// Then, change any of the encoding settings with `EncoderBuilder`'s helper methods.
+/// To create a new `Encoder`, use [`for_reader()`], [`for_file()`], or [`for_bytes()`].
+/// Then, change any of the encoding settings with `Encoder`'s helper methods.
 /// Finally, encode the input data with [`encode_to_writer()`], [`encode_to_file()`], or [`encode_to_vec()`].
 /// ```
-/// # use vpk0::{EncoderBuilder, LzssBackend};
+/// # use vpk0::{Encoder, LzssBackend};
 /// let input = b"ABBACABBCADFEGABA";
-/// let compressed = EncoderBuilder::for_bytes(input)
+/// let compressed = Encoder::for_bytes(input)
 ///     .two_sample()
 ///     .lzss_backend(LzssBackend::Kmp)
 ///     .with_logging(&mut ::std::io::stdout())
@@ -58,14 +58,14 @@ pub enum LzssBackend {
 ///   * Minimum match of 3 bytes
 ///   * [`Brute`] match searching
 ///
-/// [`for_reader()`]: EncoderBuilder::for_reader
-/// [`for_file()`]: EncoderBuilder::for_file
-/// [`for_bytes()`]: EncoderBuilder::for_bytes
-/// [`encode_to_writer()`]: EncoderBuilder::encode_to_writer
-/// [`encode_to_file()`]: EncoderBuilder::encode_to_file
-/// [`encode_to_vec()`]: EncoderBuilder::encode_to_vec
+/// [`for_reader()`]: Encoder::for_reader
+/// [`for_file()`]: Encoder::for_file
+/// [`for_bytes()`]: Encoder::for_bytes
+/// [`encode_to_writer()`]: Encoder::encode_to_writer
+/// [`encode_to_file()`]: Encoder::encode_to_file
+/// [`encode_to_vec()`]: Encoder::encode_to_vec
 /// [`Brute`]: LzssBackend::Brute
-pub struct EncoderBuilder<'a, R> {
+pub struct Encoder<'a, R> {
     rdr: R,
     method: VpkMethod,
     settings: LzssSettings,
@@ -75,8 +75,8 @@ pub struct EncoderBuilder<'a, R> {
     lengths: Option<&'a str>,
 }
 
-impl<'a, R: Read> EncoderBuilder<'a, R> {
-    /// Create a new `EncoderBuilder` for the data in `rdr`.
+impl<'a, R: Read> Encoder<'a, R> {
+    /// Create a new `Encoder` for the data in `rdr`.
     #[inline]
     pub fn for_reader(rdr: R) -> Self {
         Self {
@@ -132,10 +132,10 @@ impl<'a, R: Read> EncoderBuilder<'a, R> {
 
     /// Manually set the offset Huffman Tree with a text based representation of a tree.
     /// This representation can be extracted from a `vpk0` file by [`vpk_info`](crate::vpk_info)
-    /// or [`DecoderBuilder::trees`](crate::DecoderBuilder::trees).
+    /// or [`Decoder::trees`](crate::Decoder::trees).
     /// ```
-    /// # use vpk0::EncoderBuilder;
-    /// let compressed = EncoderBuilder::for_bytes(b"sam I am I am sam")
+    /// # use vpk0::Encoder;
+    /// let compressed = Encoder::for_bytes(b"sam I am I am sam")
     ///     .with_offsets("(3, (7, 10))")
     ///     .encode_to_vec();
     /// ```
@@ -157,10 +157,10 @@ impl<'a, R: Read> EncoderBuilder<'a, R> {
 
     /// Manually set the length Huffman Tree with a text based representation of a tree.
     /// This representation can be extracted from a `vpk0` file by [`vpk_info`](crate::vpk_info)
-    /// or [`DecoderBuilder::trees`](crate::DecoderBuilder::trees).
+    /// or [`Decoder::trees`](crate::Decoder::trees).
     /// ```
-    /// # use vpk0::EncoderBuilder;
-    /// let compressed = EncoderBuilder::for_bytes(b"sam I am I am sam")
+    /// # use vpk0::Encoder;
+    /// let compressed = Encoder::for_bytes(b"sam I am I am sam")
     ///     .with_lengths("((3, 5), (7, (12, 16))")
     ///     .encode_to_vec();
     /// ```
@@ -212,8 +212,8 @@ impl<'a, R: Read> EncoderBuilder<'a, R> {
     }
 }
 
-impl<'a> EncoderBuilder<'a, BufReader<File>> {
-    /// Create a new `EncoderBuilder` for the file at `p`.
+impl<'a> Encoder<'a, BufReader<File>> {
+    /// Create a new `Encoder` for the file at `p`.
     #[inline]
     pub fn for_file<P: AsRef<Path>>(p: P) -> Result<Self, VpkError> {
         let rdr = BufReader::new(File::open(p)?);
@@ -221,8 +221,8 @@ impl<'a> EncoderBuilder<'a, BufReader<File>> {
     }
 }
 
-impl<'a> EncoderBuilder<'a, Cursor<&'a [u8]>> {
-    /// Create a new `EncoderBuilder` for the data the `bytes` slice.
+impl<'a> Encoder<'a, Cursor<&'a [u8]>> {
+    /// Create a new `Encoder` for the data the `bytes` slice.
     #[inline]
     pub fn for_bytes(bytes: &'a [u8]) -> Self {
         let rdr = Cursor::new(bytes);
@@ -233,16 +233,13 @@ impl<'a> EncoderBuilder<'a, Cursor<&'a [u8]>> {
 /// Compress data into a `vpk0` `Vec<u8>`
 ///
 /// This is a convenience function to encode a `Read`er without having to
-/// import and set up an [`EncoderBuilder`].
+/// import and set up an [`Encoder`].
 pub fn encode<R: Read>(rdr: R) -> Result<Vec<u8>, VpkError> {
-    EncoderBuilder::for_reader(rdr).encode_to_vec()
+    Encoder::for_reader(rdr).encode_to_vec()
 }
 
-fn do_encode<R: Read, W: Write>(
-    opts: &mut EncoderBuilder<'_, R>,
-    mut wtr: W,
-) -> Result<(), VpkError> {
-    let EncoderBuilder {
+fn do_encode<R: Read, W: Write>(opts: &mut Encoder<'_, R>, mut wtr: W) -> Result<(), VpkError> {
+    let Encoder {
         rdr,
         method,
         settings,

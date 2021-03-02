@@ -24,12 +24,12 @@
 //! assert_eq!(&data, &decompressed);
 //! ```
 //!
-//! For more control, you can use [`DecoderBuilder`] or [`EncoderBuilder`]:
+//! For more control, you can use [`Decoder`] or [`Encoder`]:
 //!
 //! ```
-//! use vpk0::EncoderBuilder;
+//! use vpk0::Encoder;
 //!
-//! EncoderBuilder::for_bytes(b"ababacdcdeaba")
+//! Encoder::for_bytes(b"ababacdcdeaba")
 //!     .two_sample()
 //!     .encode_to_writer(std::io::stdout())
 //!     .unwrap();
@@ -73,14 +73,14 @@
 //!
 //! The encoder in this crate checks at most the next ten bytes,
 //! as that was the maximum number necessary to match all 500 `vpk0` encoded files in *SSB64*.
-//! In the future, this parameter may become another option for [`EncoderBuilder`].
+//! In the future, this parameter may become another option for [`Encoder`].
 //!
 //! ## Advanced Usages
 //! ### Getting info from a `vpk0` file
 //! ```
 //! use vpk0::vpk_info;
-//! # use vpk0::EncoderBuilder;
-//! # let vpkfile = EncoderBuilder::for_bytes(b"abababababacaaa").encode_to_vec().unwrap();
+//! # use vpk0::Encoder;
+//! # let vpkfile = Encoder::for_bytes(b"abababababacaaa").encode_to_vec().unwrap();
 //! # let vpkfile = std::io::Cursor::new(vpkfile);
 //! let (header, trees) = vpk_info(vpkfile).unwrap();
 //! println!("Original size: {} bytes", header.size);
@@ -90,9 +90,9 @@
 //!
 //! ### Encode like a standard LZSS
 //! ```
-//! use vpk0::{EncoderBuilder, LzssSettings};
+//! use vpk0::{Encoder, LzssSettings};
 //! // use fixed length compression by setting the offset to 10 and the length to 6.
-//! let compressed = EncoderBuilder::for_bytes(b"I am Sam. Sam I am.")
+//! let compressed = Encoder::for_bytes(b"I am Sam. Sam I am.")
 //!     .one_sample()
 //!     .with_lzss_settings(LzssSettings::new(10, 6, 2))
 //!     .with_offsets("10")
@@ -112,5 +112,5 @@ mod encode;
 pub mod errors;
 pub mod format;
 
-pub use decode::{decode, vpk_info, DecoderBuilder};
-pub use encode::{encode, lzss::LzssSettings, EncoderBuilder, LzssBackend};
+pub use decode::{decode, vpk_info, Decoder};
+pub use encode::{encode, lzss::LzssSettings, Encoder, LzssBackend};
