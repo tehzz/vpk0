@@ -7,6 +7,7 @@ use std::{
 
 /// Possible errors that arise from compressing or decompressing a `vpk0` binary
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum VpkError {
     InvalidHeader(String),
     InvalidMethod(u8),
@@ -82,6 +83,7 @@ impl From<TryFromIntError> for VpkError {
 /// [`optional_offsets`]: crate::EncoderBuilder::optional_offsets
 /// [`optional_lengths`]: crate::EncoderBuilder::optional_lengths
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum EncodeTreeParseErr {
     LexNum(ParseIntError, usize),
     LexUnexp(char, usize),
