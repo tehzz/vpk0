@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 description = "A Rust library for handling Nintendo's N64-era vpk0 data compression"
 keywords = ["compression", "vpk0", "Nintendo", "N64", "eReader"]
+categories = ["encoding"]
 repository = "https://github.com/tehzz/vpk0"
 readme = "README.md"
 
