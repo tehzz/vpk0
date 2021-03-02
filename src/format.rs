@@ -133,7 +133,7 @@ pub struct VpkHeader {
 impl VpkHeader {
     /// Parse VPK header from a byte array
     fn from_array(arr: &[u8; 9]) -> Result<Self, VpkError> {
-        let name = str::from_utf8(&arr[0..4])?;
+        let name = str::from_utf8(&arr[0..4]).map_err(VpkError::Utf8Error)?;
         if name != "vpk0" {
             return Err(VpkError::InvalidHeader(name.into()));
         }
