@@ -7,6 +7,8 @@ const VPK_METHOD0: &[u8] = include_bytes!("method0.vpk0");
 const RAW_METHOD0: &[u8] = include_bytes!("method0-orig.bin");
 const VPK_METHOD1: &[u8] = include_bytes!("method1.vpk0");
 const RAW_METHOD1: &[u8] = include_bytes!("method1-orig.bin");
+const NOREPT_MESG: &[u8] = b"abcdefgh12345";
+
 
 #[test]
 fn decode_method0() {
@@ -25,6 +27,27 @@ fn encode_method0() {
             .lzss_backend(backend)
             .encode_to_vec()
             .expect(&format!("valid encode for {:?}", backend));
+    }
+}
+
+#[test]
+fn encode_method0_no_matching() {
+    for &backend in BACKENDS {
+        let compressed = vpk0::Encoder::for_bytes(NOREPT_MESG)
+            .one_sample()
+            .lzss_backend(backend)
+            .encode_to_vec()
+            .expect(&format!("encoding no match data for {:?}", backend));
+        
+        let mut decoder = vpk0::Decoder::for_bytes(&compressed);
+        
+        let trees = decoder.trees().expect("valid zero length VPK trees");
+        assert_eq!(trees.lengths, "()", "Expected empty length tree");
+        assert_eq!(trees.offsets, "()", "Expected empty offset tree");
+
+        let decompressed = decoder.decode().expect("decoding of empty tree vpk0 file");
+
+        assert_eq!(NOREPT_MESG, decompressed, "Expected encoded-decoded data to match original data");
     }
 }
 
@@ -59,6 +82,27 @@ fn encode_method1() {
             .lzss_backend(backend)
             .encode_to_vec()
             .expect(&format!("valid encode for {:?}", backend));
+    }
+}
+
+#[test]
+fn encode_method1_no_matching() {
+    for &backend in BACKENDS {
+        let compressed = vpk0::Encoder::for_bytes(NOREPT_MESG)
+            .two_sample()
+            .lzss_backend(backend)
+            .encode_to_vec()
+            .expect(&format!("encoding no match data for {:?}", backend));
+        
+        let mut decoder = vpk0::Decoder::for_bytes(&compressed);
+        
+        let trees = decoder.trees().expect("valid zero length VPK trees");
+        assert_eq!(trees.lengths, "()", "Expected empty length tree");
+        assert_eq!(trees.offsets, "()", "Expected empty offset tree");
+
+        let decompressed = decoder.decode().expect("decoding of empty tree vpk0 file");
+
+        assert_eq!(NOREPT_MESG, decompressed, "Expected encoded-decoded data to match original data");
     }
 }
 

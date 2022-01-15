@@ -290,11 +290,11 @@ struct SlidingDict<R> {
     /// size of the look-behind dictionary window
     window: usize,
     /// size of the lookahead window
-    lookahead: usize,
+    //lookahead: usize,
     /// size of butter without peek bytes
     buf_size: usize,
     /// max possible size of lookahead + peek bytes
-    max_ahead: usize,
+    //max_ahead: usize,
     /// current position in `buf` for start of lookahead
     csr: usize,
     buf: SliceDeque<u8>,
@@ -315,14 +315,7 @@ impl<R: Read> SlidingDict<R> {
         let lookahead = settings.max_encoded();
         let buf_size = window + lookahead;
         let max_ahead = lookahead + Self::MAX_PEEK;
-        /*
-        info!(
-            "Window: {}, Ahead: {}, Capacity: {}",
-            window,
-            lookahead,
-            buf_size + Self::MAX_PEEK,
-        );
-        */
+  
         // at the start, everything is in the lookahead
         let csr = 0;
         let mut buf = SliceDeque::with_capacity(buf_size + Self::MAX_PEEK);
@@ -342,9 +335,9 @@ impl<R: Read> SlidingDict<R> {
 
         Ok(Self {
             window,
-            lookahead,
+            //lookahead,
             buf_size,
-            max_ahead,
+            //max_ahead,
             csr,
             buf,
             rdr,

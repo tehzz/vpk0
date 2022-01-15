@@ -183,6 +183,11 @@ pub(crate) struct VpkTree {
 }
 
 impl VpkTree {
+    /// Create an empty tree.
+    /// This will be written to the output buffer as a single true bit (1)
+    pub(crate) fn empty() -> Self {
+        Self { entries: Vec::new() }
+    }
     pub(crate) fn from_bitreader<R: Read>(bits: &mut BitReader<R, BE>) -> Result<Self, VpkError> {
         let mut entries: Vec<TreeEntry> = Vec::new();
         let mut buf: Vec<usize> = Vec::new();
@@ -265,7 +270,11 @@ impl VpkTree {
 
 impl fmt::Display for VpkTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self._format_entry(self.entries.len() - 1, f)
+        if self.entries.is_empty() {
+            write!(f, "()")
+        } else {
+            self._format_entry(self.entries.len() - 1, f)
+        }
     }
 }
 

@@ -10,7 +10,6 @@ use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap},
     fmt,
-    iter::FromIterator,
     mem::size_of,
     str::FromStr,
 };
@@ -39,11 +38,13 @@ impl EncodedMaps {
         let offsets = offsets
             .map(str::parse::<MapTree>)
             .map(|t| t.map(|t| t.fill_missing(&p1.moveback_bitfreq)))
-            .unwrap_or_else(|| Ok(Tree::from_found_codes(&p1.moveback_bitfreq).into()))?;
+            .transpose()?
+            .unwrap_or_else(|| Tree::from_found_codes(&p1.moveback_bitfreq).into());
         let lengths = lengths
             .map(str::parse::<MapTree>)
             .map(|t| t.map(|t| t.fill_missing(&p1.size_bitfreq)))
-            .unwrap_or_else(|| Ok(Tree::from_found_codes(&p1.size_bitfreq).into()))?;
+            .transpose()?
+            .unwrap_or_else(|| Tree::from_found_codes(&p1.size_bitfreq).into());
 
         Ok(Self { offsets, lengths })
     }
@@ -87,10 +88,22 @@ impl MapTree {
 
         self
     }
+
+    /// Create an empty Tree (i.e., no found matches in a buffer)
+    fn empty() -> Self {
+        Self {
+            map: CodeMap::new(),
+            tree: VpkTree::empty(),
+        }
+    }
 }
 
 impl fmt::Display for MapTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.map.is_empty() {
+            return writeln!(f, "empty tree");
+        }
+
         for (key, (size, code)) in &self.map {
             writeln!(f, "{} : {} (read next {} bytes)", key, code, size)?
         }
@@ -98,11 +111,13 @@ impl fmt::Display for MapTree {
     }
 }
 
-impl From<Tree> for MapTree {
-    fn from(tree: Tree) -> Self {
-        let map = tree.generate_code_map();
-        let tree = tree.into();
-        Self { map, tree }
+impl From<Option<Tree>> for MapTree {
+    fn from(opt: Option<Tree>) -> Self {
+        opt.map(|tree| {
+            let map = tree.generate_code_map();
+            let tree = tree.into();
+            Self { map, tree }
+        }).unwrap_or_else(Self::empty)
     }
 }
 
@@ -123,7 +138,11 @@ struct Tree {
 }
 
 impl Tree {
-    fn from_heap(mut heap: BinaryHeap<TreeNode>) -> Self {
+    fn from_heap(mut heap: BinaryHeap<TreeNode>) -> Option<Self> {
+        if heap.is_empty() {
+            return None;
+        }
+
         while heap.len() >= 2 {
             let l = heap.pop().unwrap();
             let r = heap.pop().unwrap();
@@ -134,7 +153,7 @@ impl Tree {
 
         let root = heap.pop().unwrap();
 
-        Self { root }
+        Some(Self { root })
     }
 
     fn generate_code_map(&self) -> CodeMap {
@@ -143,10 +162,12 @@ impl Tree {
         map
     }
 
-    fn from_found_codes(map: &HashMap<BitSize, Frequency>) -> Self {
-        let deref_tupple = |(&a, &b)| (a, b);
+    fn from_found_codes(map: &HashMap<BitSize, Frequency>) -> Option<Self> {
+        let copied_tupple = |(&a, &b)| (a, b);
 
-        map.iter().map(deref_tupple).collect()
+        let heap = map.iter().map(copied_tupple).map(TreeNode::from).collect();
+
+        Self::from_heap(heap)
     }
 
     /*
@@ -169,12 +190,14 @@ impl Tree {
     */
 }
 
-impl FromIterator<SizeFreq> for Tree {
+/*
+impl FromIterator<SizeFreq> for Option<Tree> {
     fn from_iter<I: IntoIterator<Item = SizeFreq>>(iter: I) -> Self {
         let heap = iter.into_iter().map(TreeNode::from).collect();
         Self::from_heap(heap)
     }
 }
+*/
 
 #[allow(clippy::from_over_into)]
 impl Into<VpkTree> for Tree {
