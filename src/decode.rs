@@ -140,12 +140,20 @@ impl<'a> Decoder<'a, BufReader<File>> {
     }
 }
 
-/// Decompress `vpk0` data into a `Vec<u8>`
+/// Decompress a `Read`er of `vpk0` data into a `Vec<u8>`
 ///
 /// This is a convenience function to decode a `Read`er without
 /// having to import and set up a [`Decoder`]
 pub fn decode<R: Read>(rdr: R) -> Result<Vec<u8>, VpkError> {
     Decoder::for_reader(rdr).decode()
+}
+
+/// Decompress a byte slice of `vpk0` data into a `Vec<u8>`
+///
+/// This is a convenience function to decode data without
+/// having to import and set up a [`Decoder`] or a `std::io::Cursor`
+pub fn decode_bytes(bytes: &[u8]) -> Result<Vec<u8>, VpkError> {
+    Decoder::for_reader(Cursor::new(bytes)).decode()
 }
 
 /// Extract the [`VpkHeader`] and [`TreeInfo`] from `vpk0` data

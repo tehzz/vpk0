@@ -230,12 +230,20 @@ impl<'a> Encoder<'a, Cursor<&'a [u8]>> {
     }
 }
 
-/// Compress data into a `vpk0` `Vec<u8>`
+/// Compress a `Read`er into a `vpk0` `Vec<u8>`
 ///
 /// This is a convenience function to encode a `Read`er without having to
 /// import and set up an [`Encoder`].
 pub fn encode<R: Read>(rdr: R) -> Result<Vec<u8>, VpkError> {
     Encoder::for_reader(rdr).encode_to_vec()
+}
+
+/// Compress a `&[u8]` into a `vpk0` `Vec<u8>`
+///
+/// This is a convenience function to encode a `Read`er without having to
+/// import and set up an [`Encoder`] and a `std::io::Cursor`.
+pub fn encode_bytes(bytes: &[u8]) -> Result<Vec<u8>, VpkError> {
+    Encoder::for_reader(Cursor::new(bytes)).encode_to_vec()
 }
 
 fn do_encode<R: Read, W: Write>(opts: &mut Encoder<'_, R>, mut wtr: W) -> Result<(), VpkError> {

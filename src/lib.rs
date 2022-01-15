@@ -112,5 +112,5 @@ mod encode;
 pub mod errors;
 pub mod format;
 
-pub use decode::{decode, vpk_info, Decoder};
-pub use encode::{encode, lzss::LzssSettings, Encoder, LzssBackend};
+pub use decode::{decode, decode_bytes, vpk_info, Decoder};
+pub use encode::{encode, encode_bytes, lzss::LzssSettings, Encoder, LzssBackend};

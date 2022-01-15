@@ -117,7 +117,8 @@ impl From<Option<Tree>> for MapTree {
             let map = tree.generate_code_map();
             let tree = tree.into();
             Self { map, tree }
-        }).unwrap_or_else(Self::empty)
+        })
+        .unwrap_or_else(Self::empty)
     }
 }
 

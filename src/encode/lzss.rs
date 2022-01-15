@@ -315,7 +315,7 @@ impl<R: Read> SlidingDict<R> {
         let lookahead = settings.max_encoded();
         let buf_size = window + lookahead;
         let max_ahead = lookahead + Self::MAX_PEEK;
-  
+
         // at the start, everything is in the lookahead
         let csr = 0;
         let mut buf = SliceDeque::with_capacity(buf_size + Self::MAX_PEEK);
